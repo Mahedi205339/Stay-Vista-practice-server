@@ -47,9 +47,6 @@ async function run() {
 
     const usersCollection = client.db('StayVistaDB').collection('users')
 
-
-
-
     // auth related api
     app.post('/jwt', async (req, res) => {
       const user = req.body
@@ -81,6 +78,8 @@ async function run() {
         res.status(500).send(err)
       }
     })
+
+    // todo 
 
     // Save or modify user email, status in DB
     app.put('/users/:email', async (req, res) => {
