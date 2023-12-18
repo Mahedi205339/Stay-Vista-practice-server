@@ -82,9 +82,9 @@ async function run() {
       }
 
     })
-      
+
     // todo 
-    
+
 
     // Save or modify user email, status in DB
     app.put('/users/:email', async (req, res) => {
@@ -105,6 +105,13 @@ async function run() {
       res.send(result)
     })
 
+    // Get user role 
+    app.get('/user/:email', async (req, res) => {
+      const email = req.params.email
+      const result = await usersCollection.findOne({ email})
+      res.send(result)
+    })
+
     // Get all rooms 
     app.get('/rooms', async (req, res) => {
       try {
@@ -115,7 +122,7 @@ async function run() {
       }
     })
     //Get room for host 
-    app.get('/rooms/:email', verifyToken,  async (req, res) => {
+    app.get('/rooms/:email', verifyToken, async (req, res) => {
       const email = req.params.email
       const result = await roomsCollection
         .find({ 'host.email': email })
@@ -133,7 +140,7 @@ async function run() {
     app.get('/room/:id', async (req, res) => {
       try {
         const id = req.params.id
-        const result = await roomsCollection.findOne({_id: new ObjectId(id)})
+        const result = await roomsCollection.findOne({ _id: new ObjectId(id) })
         res.send(result)
       } catch (err) {
         res.status(500).send(err)
