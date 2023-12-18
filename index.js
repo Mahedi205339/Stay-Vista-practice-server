@@ -1,9 +1,10 @@
 const express = require('express')
 const app = express()
+exports.app = app
 require('dotenv').config()
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
+const { MongoClient, ServerApiVersion, } = require('mongodb')
 const jwt = require('jsonwebtoken')
 const morgan = require('morgan')
 const port = process.env.PORT || 5000
@@ -34,6 +35,7 @@ const verifyToken = async (req, res, next) => {
     next()
   })
 }
+exports.verifyToken = verifyToken
 
 const client = new MongoClient(process.env.DB_URI, {
   serverApi: {
@@ -78,9 +80,11 @@ async function run() {
       } catch (err) {
         res.status(500).send(err)
       }
-    })
 
+    })
+      
     // todo 
+    
 
     // Save or modify user email, status in DB
     app.put('/users/:email', async (req, res) => {
@@ -101,7 +105,6 @@ async function run() {
       res.send(result)
     })
 
-
     // Get all rooms 
     app.get('/rooms', async (req, res) => {
       try {
@@ -111,6 +114,21 @@ async function run() {
         res.status(500).send(err)
       }
     })
+    //Get room for host 
+    app.get('/rooms/:email', verifyToken,  async (req, res) => {
+      const email = req.params.email
+      const result = await roomsCollection
+        .find({ 'host.email': email })
+        .toArray()
+      res.send(result)
+    })
+
+    app.post('/rooms', verifyToken, async (req, res) => {
+      const room = req.body
+      const result = await roomsCollection.insertOne(room)
+      res.send(result)
+    })
+
     //Get single room data
     app.get('/room/:id', async (req, res) => {
       try {
