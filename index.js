@@ -8,7 +8,7 @@ const { MongoClient, ServerApiVersion, ObjectId, } = require('mongodb')
 const jwt = require('jsonwebtoken')
 const morgan = require('morgan')
 const port = process.env.PORT || 5000
-const stipe = require('stripe')(process.env.PAYMENT_SECRET_KEY)
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY)
 
 // middleware
 const corsOptions = {
@@ -145,24 +145,23 @@ async function run() {
     })
 
     // Send a ping to confirm a successful connection
-    await client.db('admin').command({ ping: 1 })
-    console.log(
-      'Pinged your deployment. You successfully connected to MongoDB!'
-    )
+
 
     //save booking info in booking collection
-    app.post('/bookings', async (req, res) => {
+    app.post('/bookings', verifyToken, async (req, res) => {
       const booking = req.body;
       const result = await bookingsCollection.insertOne(booking)
       //email send section
       res.send(result)
     })
     //update room booking room status 
-    app.patch('/room/status/:id', async (req, res) => {
+    app.patch('/rooms/status/:id', verifyToken, async (req, res) => {
+      const id = req.params.id
+      const status = req.body.status;
       const query = { _id: new ObjectId(id) }
       const updateDoc = {
         $set: {
-          booked: 'status',
+          booked: status,
         },
       }
       const result = await roomsCollection.updateOne(query, updateDoc)
@@ -170,20 +169,39 @@ async function run() {
     })
 
     // Generate client secret for stipe payment
-    app.post('/create-payment-intend', verifyToken, async (req, res) => {
+    app.post('/create-payment-intent', verifyToken, async (req, res) => {
       const { price } = req.body
       const amount = parseInt(price * 100)
       if (!price || amount < 1) return
-      const { client_secrete } = await stipe.paymentIntends.create({
-        amount: price,
+      const { client_secret } = await stripe.paymentIntents.create({
+        amount: amount,
         currency: 'usd',
-        payment_method_types: ['card']
+        payment_method_types: ['card'],
       })
-      res.send({ clientSecrete: client_secrete })
+      res.send({ clientSecret: client_secret })
+    })
+
+    //get all bookings for guest 
+    app.get('/bookings', verifyToken, async (req, res) => {
+      const email = req.query.email
+      const query = { 'guest.email': email }
+      const result = await bookingsCollection.find(query).toArray()
+      res.send(result)
+    })
+    // get all bookings for host 
+    app.get('/bookings/host', verifyToken, async (req, res) => {
+      const email = req.query.email;
+      if (!email) return res.send([])
+      const query = { host: email }
+      const result = await bookingsCollection.find(query).toArray()
+      res.send(result)
     })
 
 
-
+    await client.db('admin').command({ ping: 1 })
+    console.log(
+      'Pinged your deployment. You successfully connected to MongoDB!'
+    )
 
   } finally {
     // Ensures that the client will close when you finish/error
