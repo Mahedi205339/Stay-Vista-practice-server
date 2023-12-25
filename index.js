@@ -1,14 +1,14 @@
 const express = require('express')
 const app = express()
-exports.app = app
+// exports.app = app
 require('dotenv').config()
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
-const { MongoClient, ServerApiVersion, } = require('mongodb')
+const { MongoClient, ServerApiVersion, ObjectId, } = require('mongodb')
 const jwt = require('jsonwebtoken')
 const morgan = require('morgan')
 const port = process.env.PORT || 5000
-
+const stipe = require('stripe')(process.env.PAYMENT_SECRET_KEY)
 
 // middleware
 const corsOptions = {
@@ -49,6 +49,7 @@ async function run() {
 
     const usersCollection = client.db('StayVistaDB').collection('users')
     const roomsCollection = client.db('StayVistaDB').collection('rooms')
+    const bookingsCollection = client.db('StayVistaDB').collection('bookings')
 
     // auth related api
     app.post('/jwt', async (req, res) => {
@@ -108,7 +109,7 @@ async function run() {
     // Get user role 
     app.get('/user/:email', async (req, res) => {
       const email = req.params.email
-      const result = await usersCollection.findOne({ email})
+      const result = await usersCollection.findOne({ email })
       res.send(result)
     })
 
@@ -138,13 +139,9 @@ async function run() {
 
     //Get single room data
     app.get('/room/:id', async (req, res) => {
-      try {
-        const id = req.params.id
-        const result = await roomsCollection.findOne({ _id: new ObjectId(id) })
-        res.send(result)
-      } catch (err) {
-        res.status(500).send(err)
-      }
+      const id = req.params.id
+      const result = await roomsCollection.findOne({ _id: new ObjectId(id) })
+      res.send(result)
     })
 
     // Send a ping to confirm a successful connection
@@ -152,6 +149,42 @@ async function run() {
     console.log(
       'Pinged your deployment. You successfully connected to MongoDB!'
     )
+
+    //save booking info in booking collection
+    app.post('/bookings', async (req, res) => {
+      const booking = req.body;
+      const result = await bookingsCollection.insertOne(booking)
+      //email send section
+      res.send(result)
+    })
+    //update room booking room status 
+    app.patch('/room/status/:id', async (req, res) => {
+      const query = { _id: new ObjectId(id) }
+      const updateDoc = {
+        $set: {
+          booked: 'status',
+        },
+      }
+      const result = await roomsCollection.updateOne(query, updateDoc)
+      res.send(result)
+    })
+
+    // Generate client secret for stipe payment
+    app.post('/create-payment-intend', verifyToken, async (req, res) => {
+      const { price } = req.body
+      const amount = parseInt(price * 100)
+      if (!price || amount < 1) return
+      const { client_secrete } = await stipe.paymentIntends.create({
+        amount: price,
+        currency: 'usd',
+        payment_method_types: ['card']
+      })
+      res.send({ clientSecrete: client_secrete })
+    })
+
+
+
+
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
