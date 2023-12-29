@@ -197,6 +197,11 @@ async function run() {
       res.send(result)
     })
 
+    //get all users 
+    app.get('/users', async (req, res) => {
+      const result = await usersCollection.find().toArray()
+      res.send()
+    })
 
     await client.db('admin').command({ ping: 1 })
     console.log(
