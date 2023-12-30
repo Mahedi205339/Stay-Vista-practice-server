@@ -51,6 +51,24 @@ async function run() {
     const roomsCollection = client.db('StayVistaDB').collection('rooms')
     const bookingsCollection = client.db('StayVistaDB').collection('bookings')
 
+    //Role verification middleware 
+    // for admin 
+    const verifyAdmin = async (req, res, next) => {
+      const user = req.user
+      const query = { email: user?.email }
+      const result = await usersCollection.findOne(query)
+      if (!result || result?.role !== 'admin') return res.status(401).send({ message: ' unauthorized access' })
+      next()
+    }
+    // for hosts
+    const verifyHost = async (req, res, next) => {
+      const user = req.user
+      const query = { email: user?.email }
+      const result = await usersCollection.findOne(query)
+      if (!result || result?.role !== 'host') return res.status(401).send({ message: ' unauthorized access' })
+      next()
+    }
+
     // auth related api
     app.post('/jwt', async (req, res) => {
       const user = req.body
@@ -85,26 +103,66 @@ async function run() {
     })
 
     // todo 
+    //get all users 
+    app.get('/users',verifyToken ,verifyAdmin, async (req, res) => {
+      try {
+        const result = await usersCollection.find().toArray();
+        res.status(200).send(result);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).send('Internal Server Error');
+      }
+    });
 
-
-    // Save or modify user email, status in DB
-    app.put('/users/:email', async (req, res) => {
-      const email = req.params.email
+    app.put('/users/update/:email', async (req, res) => {
+      const email = req.params.email;
       const user = req.body
       const query = { email: email }
       const options = { upsert: true }
-      const isExist = await usersCollection.findOne(query)
-      console.log('User found?----->', isExist)
-      if (isExist) return res.send(isExist)
+      const updateDoc = {
+        $set: {
+          ...user,
+          timestamp: Date.now(),
+        },
+
+      }
+      const result = await usersCollection.updateOne(query, updateDoc, options)
+      res.send(result)
+    })
+
+    // Save or modify user email, status in DB
+    app.put('/users/:email', async (req, res) => {
+      const email = req.params.email;
+      const user = req.body;
+      const query = { email: email };
+      const options = { upsert: true };
+
+      const isExist = await usersCollection.findOne(query);
+      console.log('User found? ----->', isExist);
+
+      if (isExist) {
+        if (user?.status === 'Requested') {
+          const result = await usersCollection.updateOne(
+            query,
+            {
+              $set: { 'user.status': user.status }, // Update only the status
+            }
+          );
+          return res.send(result);
+        } else {
+          return res.send(isExist);
+        }
+      }
+
       const result = await usersCollection.updateOne(
         query,
         {
           $set: { ...user, timestamp: Date.now() },
         },
         options
-      )
-      res.send(result)
-    })
+      );
+      res.send(result);
+    });
 
     // Get user role 
     app.get('/user/:email', async (req, res) => {
@@ -123,7 +181,7 @@ async function run() {
       }
     })
     //Get room for host 
-    app.get('/rooms/:email', verifyToken, async (req, res) => {
+    app.get('/rooms/:email', verifyToken, verifyHost, async (req, res) => {
       const email = req.params.email
       const result = await roomsCollection
         .find({ 'host.email': email })
@@ -189,7 +247,7 @@ async function run() {
       res.send(result)
     })
     // get all bookings for host 
-    app.get('/bookings/host', verifyToken, async (req, res) => {
+    app.get('/bookings/host', verifyToken,verifyHost, async (req, res) => {
       const email = req.query.email;
       if (!email) return res.send([])
       const query = { host: email }
@@ -197,11 +255,7 @@ async function run() {
       res.send(result)
     })
 
-    //get all users 
-    app.get('/users', async (req, res) => {
-      const result = await usersCollection.find().toArray()
-      res.send()
-    })
+
 
     await client.db('admin').command({ ping: 1 })
     console.log(
