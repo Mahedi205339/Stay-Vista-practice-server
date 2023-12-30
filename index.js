@@ -3,6 +3,7 @@ const app = express()
 // exports.app = app
 require('dotenv').config()
 const cors = require('cors')
+const nodemailer = require('nodemailer')
 const cookieParser = require('cookie-parser')
 const { MongoClient, ServerApiVersion, ObjectId, } = require('mongodb')
 const jwt = require('jsonwebtoken')
@@ -35,8 +36,30 @@ const verifyToken = async (req, res, next) => {
     next()
   })
 }
-exports.verifyToken = verifyToken
+// exports.verifyToken = verifyToken
+// send email 
+const sendEmail = () => {
+  // Create a transformer
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.USER,
+      pass: process.env.PASS,
+    }
+  })
 
+  //verify connection 
+  transporter.verify((error, success) => {
+    if (error) {
+      console.log(error)
+    } else {
+      console.log('server is ready to take our email');
+    }
+  })
+}
 const client = new MongoClient(process.env.DB_URI, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -104,7 +127,7 @@ async function run() {
 
     // todo 
     //get all users 
-    app.get('/users',verifyToken ,verifyAdmin, async (req, res) => {
+    app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
       try {
         const result = await usersCollection.find().toArray();
         res.status(200).send(result);
@@ -247,7 +270,7 @@ async function run() {
       res.send(result)
     })
     // get all bookings for host 
-    app.get('/bookings/host', verifyToken,verifyHost, async (req, res) => {
+    app.get('/bookings/host', verifyToken, verifyHost, async (req, res) => {
       const email = req.query.email;
       if (!email) return res.send([])
       const query = { host: email }
