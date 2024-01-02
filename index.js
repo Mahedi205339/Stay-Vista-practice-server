@@ -56,7 +56,22 @@ const sendEmail = () => {
     if (error) {
       console.log(error)
     } else {
-      console.log('server is ready to take our email');
+      console.log('Server is ready to take our emails', success)
+    }
+  })
+
+  const mailBody = {
+    from: process.env.MAIL,
+    to: emailAddress,
+    subject: emailData?.subject,
+    html: `<p>${emailData?.message}</p>`,
+  }
+
+  transporter.sendMail(mailBody, (error, info) => {
+    if (error) {
+      console.log(error)
+    } else {
+      console.log('Email sent: ' + info.response)
     }
   })
 }
@@ -223,6 +238,31 @@ async function run() {
       const id = req.params.id
       const result = await roomsCollection.findOne({ _id: new ObjectId(id) })
       res.send(result)
+    })
+    //admin state data
+    app.get('/admin-stat', verifyToken, verifyAdmin, async (req, res) => {
+      const bookingsDetails = await bookingsCollection
+        .find({}, { projection: { date: 1, price: 1 } })
+        .toArray()
+      const userCount = await usersCollection.countDocuments()
+      const roomCount = await roomsCollection.countDocuments()
+      const totalSale = bookingsDetails.reduce(
+        (sum, data) => sum + data.price,
+        0
+      )
+      const chartData = bookingsDetails.map(data => {
+        const day = new Date(data.date).getDate()
+        const month = new Date(data.date).getMonth() + 1
+        return [day + '/' + month, data.price]
+      })
+      chartData.unshift(['Day', 'Sale'])
+      res.send({
+        totalSale,
+        bookingCount: bookingsDetails.length,
+        userCount,
+        roomCount,
+        chartData,
+      })
     })
 
     // Send a ping to confirm a successful connection
