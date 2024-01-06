@@ -227,6 +227,14 @@ async function run() {
       res.send(result)
     })
 
+    //Delete a room 
+    app.delete('/rooms/:id', verifyToken, verifyHost, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await roomsCollection.deleteOne(query)
+      res.send(result)
+    })
+
     app.post('/rooms', verifyToken, async (req, res) => {
       const room = req.body
       const result = await roomsCollection.insertOne(room)
@@ -234,11 +242,38 @@ async function run() {
     })
 
     //Get single room data
-    app.get('/room/:id', async (req, res) => {
+    app.get('/room/:id', verifyToken, async (req, res) => {
       const id = req.params.id
       const result = await roomsCollection.findOne({ _id: new ObjectId(id) })
       res.send(result)
     })
+//get update room details 
+    app.get('/update-room/:id', async (req, res) => {
+      const id = req.params.id
+      const result = await roomsCollection.findOne({ _id: new ObjectId(id) })
+      res.send(result)
+    })
+    //update room 
+    app.put('/update-room/:id',verifyToken,verifyHost, async(req,res)=>{
+      try {
+        const room = req.body;
+        console.log(room);
+        const id = req.params.id;
+        const options = { upsert: true };
+        const filter = { _id: new ObjectId(id) }
+        const updatedDoc = {
+            $set: {
+               room
+            }
+        }
+        const result = await roomsCollection.updateOne(filter, updatedDoc,options)
+        res.send(result);
+    } catch {
+        error => console.log(error)
+    }
+    })
+
+
     //admin state data
     app.get('/admin-stat', verifyToken, verifyAdmin, async (req, res) => {
       const bookingsDetails = await bookingsCollection
