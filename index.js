@@ -247,14 +247,14 @@ async function run() {
       const result = await roomsCollection.findOne({ _id: new ObjectId(id) })
       res.send(result)
     })
-//get update room details 
+    //get update room details 
     app.get('/update-room/:id', async (req, res) => {
       const id = req.params.id
       const result = await roomsCollection.findOne({ _id: new ObjectId(id) })
       res.send(result)
     })
     //update room 
-    app.put('/update-room/:id',verifyToken,verifyHost, async(req,res)=>{
+    app.put('/update-room/:id', verifyToken, verifyHost, async (req, res) => {
       try {
         const room = req.body;
         console.log(room);
@@ -262,15 +262,15 @@ async function run() {
         const options = { upsert: true };
         const filter = { _id: new ObjectId(id) }
         const updatedDoc = {
-            $set: {
-               room
-            }
+          $set: {
+            room
+          }
         }
-        const result = await roomsCollection.updateOne(filter, updatedDoc,options)
+        const result = await roomsCollection.updateOne(filter, updatedDoc, options)
         res.send(result);
-    } catch {
+      } catch {
         error => console.log(error)
-    }
+      }
     })
 
 
@@ -310,6 +310,15 @@ async function run() {
       //email send section
       res.send(result)
     })
+
+    //cancel booking 
+    app.delete('/booking/:id', verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await bookingsCollection.deleteOne(query)
+      res.send(result)
+    })
+
     //update room booking room status 
     app.patch('/rooms/status/:id', verifyToken, async (req, res) => {
       const id = req.params.id
